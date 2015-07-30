@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+Archiver-Version: Plexus Archiver
+Created-By: Apache Maven
+Built-By: root
+Build-Jdk: 1.6.0_30
+Hudson-Build-Number: 5
+Hudson-Project: Rosetta-4.0.0_Nightly
+Hudson-Version: 1.500
+Jenkins-Build-Number: 5
+Jenkins-Project: Rosetta-4.0.0_Nightly
+Jenkins-Version: 1.500
+
