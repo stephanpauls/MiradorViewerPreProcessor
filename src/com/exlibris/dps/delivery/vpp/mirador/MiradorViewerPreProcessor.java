@@ -74,6 +74,10 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
       IEParser ieParser = getAccess().getIE(this.pid,null,null);
       this.repPid = this.origRepPid = db.getDerivativeHighPid(this.pid);
       
+          if ((this.repPid = this.origRepPid = db.getDerivativeHighPid(this.pid))== null) {
+             this.repPid = this.origRepPid = db.getPreservation(this.pid);
+          }       
+      
       gov.loc.mets.StructMapType[] structMapTypeArray = ieParser.getStructMapsByFileGrpId(this.repPid);
         for (gov.loc.mets.StructMapType structMapType : structMapTypeArray) {
           this.origFilesPid = ieParser.getFilesArray(structMapType);
@@ -141,7 +145,9 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
         {
 
           IEParser ieParser = getAccess().getIE(this.pid,null,null);
-          this.repPid = db.getDerivativeHighPid(this.pid);
+          if ((this.repPid = db.getDerivativeHighPid(this.pid))== null) {
+             this.repPid = db.getPreservation(this.pid);
+          } 
           gov.loc.mets.StructMapType[] structMapTypeArray = ieParser.getStructMapsByFileGrpId( this.repPid);
           for (gov.loc.mets.StructMapType structMapType : structMapTypeArray) {
             this.filesPid = ieParser.getFilesArray(structMapType);
@@ -362,7 +368,7 @@ private String readFile( String file ) throws IOException {
 
   public void addFooterIndexFile() {
      
-    String indexFileWindowObjects = "],\"windowObjects\": [{\"loadedManifest\": \""+m2+"/manifest/"+ this.origPid +"manifest.json\",\"viewType\" : \"BookView\"}]";     
+    String indexFileWindowObjects = "],\"windowObjects\": [{\"loadedManifest\": \""+m2+"/manifest/"+"\"+loadedIePid+\""+"manifest.json\",\"viewType\" : \"ImageView\"}]";     
     String indexFileFooter = "}); Mirador.viewer.activeWorkspace.slots[0].addItem(); }); </script>";
     
     try {  
