@@ -19,7 +19,7 @@ public class Db {
     	private Connection conn_shr = null;
     	private Connection conn_per = null;
 //        private final String url = "jdbc:oracle:thin:@libis-db-rosettaq.cc.kuleuven.be:1751/ROSETTAQ.kuleuven.be";
-        private final String url = "jdbc:oracle:thin:@libis-db-rosetta.cc.kuleuven.be:1551/ROSETTAP.kuleuven.be";        
+        private String url = "jdbc:oracle:thin:@libis-db-rosetta.cc.kuleuven.be:1551/ROSETTAP.kuleuven.be";        
         private static final ExLogger logger = ExLogger.getExLogger(Db.class);
         private String breedte;
         private String hoogte;
@@ -45,6 +45,7 @@ public class Db {
 		  
 		  try {
 //		    conn = DriverManager.getConnection(url,"V232_REP00","V232_REP00");
+                    url = prop.getProperty("database");
 		    conn = DriverManager.getConnection(url,prop.getProperty("repuser"),prop.getProperty("reppwd"));
 		    conn_shr = DriverManager.getConnection(url,prop.getProperty("shruser"),prop.getProperty("shrpwd"));
 		    conn_per = DriverManager.getConnection(url,prop.getProperty("peruser"),prop.getProperty("perpwd"));
