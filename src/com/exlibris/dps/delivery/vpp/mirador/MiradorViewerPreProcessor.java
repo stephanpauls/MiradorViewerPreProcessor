@@ -15,13 +15,11 @@ import com.exlibris.digitool.common.dnx.DnxSection;
 import com.exlibris.digitool.common.dnx.DnxSectionRecord;
 import com.exlibris.dps.sdk.access.AccessException;
 import com.exlibris.dps.sdk.delivery.AbstractViewerPreProcessor;
-import com.exlibris.dps.sdk.delivery.SmartFilePath;
 import com.exlibris.dps.sdk.deposit.IEParser;
-import gov.loc.mets.FileType;
-import gov.loc.mets.MetsType;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
@@ -31,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.ResourceBundle;
 import javax.servlet.http.HttpServletRequest;
 import org.json.JSONArray;
@@ -44,6 +43,8 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
   private ArrayList<String> pids = new ArrayList();
   private HashMap<Integer, String> storageMap = null;
 
+  private Properties prop; 
+
   private String pid = null;
   private String repPid = null;
   private String origPid = null;
@@ -55,9 +56,9 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
   private String progressBarMessage = null;
   private Db db = null;
   private static final ExLogger logger = ExLogger.getExLogger(MiradorViewerPreProcessor.class);
-  private  final String iipservDir = " /operational_shared/tmp/delivery/MiradorViewerPreProcessor";
-  private  final String m2 = "http://services.libis.be/m2";
-  private  final String iipserv = "http://services.libis.be//iipsrv";
+  private   String iipservDir = " /operational_shared/tmp/delivery/MiradorViewerPreProcessor";
+  private   String m2 = "http://services.libis.be/m2";
+  private   String iipserv = "http://services.libis.be//iipsrv";
 //  private  final String m2 = "http://libis-p-rosetta-3w.cc.kuleuven.be:80/m2";
 //  private  final String iipserv = "http://libis-p-rosetta-3w.cc.kuleuven.be:80/iipsrv";
   //private  final String miradorserver = "http://services.libis.be";  
@@ -68,6 +69,15 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
   public void init(DnxDocument dnx, Map<String, String> viewContext, HttpServletRequest request, String dvs, String ieParentId, String repParentId)
     throws AccessException
   {
+      try{
+        prop.load(new FileInputStream("mirador.properties"));
+        iipservDir = prop.getProperty("iipservDir");
+        m2 = prop.getProperty("mirador");
+        iipserv = prop.getProperty("iipserv");
+        } catch (IOException e){
+          logger.info("mirador.properties not loaded");
+          throw new AccessException();
+        }
     //create oracle connection 
     db = new Db();
     storageMap = db.getStorageIds();
