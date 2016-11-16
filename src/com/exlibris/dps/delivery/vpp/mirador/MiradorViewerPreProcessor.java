@@ -17,6 +17,8 @@ import com.exlibris.dps.sdk.access.AccessException;
 import com.exlibris.dps.sdk.delivery.AbstractViewerPreProcessor;
 import com.exlibris.dps.sdk.delivery.SmartFilePath;
 import com.exlibris.dps.sdk.deposit.IEParser;
+import gov.loc.mets.FileType;
+import gov.loc.mets.MetsType;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -24,6 +26,7 @@ import java.io.FileReader;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -39,19 +42,24 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
   private ArrayList<String> filesPid = new ArrayList();
   private ArrayList<String> origFilesPid = new ArrayList();
   private ArrayList<String> pids = new ArrayList();
+  private HashMap<Integer, String> storageMap = null;
+
   private String pid = null;
   private String repPid = null;
   private String origPid = null;
   private String origRepPid = null;
-  private repType type = null;
+  private MiradorViewerPreProcessor.repType type = null;
   private String ext = "";
   private String licentie = "";
   private String entiteit = "";  
   private String progressBarMessage = null;
   private Db db = null;
   private static final ExLogger logger = ExLogger.getExLogger(MiradorViewerPreProcessor.class);
+  private  final String iipservDir = " /operational_shared/tmp/delivery/MiradorViewerPreProcessor";
   private  final String m2 = "http://services.libis.be/m2";
   private  final String iipserv = "http://services.libis.be//iipsrv";
+//  private  final String m2 = "http://libis-p-rosetta-3w.cc.kuleuven.be:80/m2";
+//  private  final String iipserv = "http://libis-p-rosetta-3w.cc.kuleuven.be:80/iipsrv";
   //private  final String miradorserver = "http://services.libis.be";  
   private Writer output;
 
@@ -62,8 +70,9 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
   {
     //create oracle connection 
     db = new Db();
+    storageMap = db.getStorageIds();
       
-    logger.debug("in MiradorViewerPP execute");
+    logger.info("in MiradorViewerPP execute");
     super.init(dnx, viewContext, request, dvs, ieParentId, repParentId);
     this.pid = this.origPid = getPid();
     this.pids = db.getOtherPIDsOfEntity(this.pid);
@@ -74,11 +83,12 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
       IEParser ieParser = getAccess().getIE(this.pid,null,null);
       this.repPid = this.origRepPid = db.getDerivativeHighPid(this.pid);
       
-          if ((this.repPid = this.origRepPid = db.getDerivativeHighPid(this.pid))== null) {
-             this.repPid = this.origRepPid = db.getPreservation(this.pid);
-          }       
+      if ((this.repPid = this.origRepPid = db.getDerivativeHighPid(this.pid))== null) {
+            this.repPid = this.origRepPid = db.getPreservation(this.pid);
+      }       
       
-      gov.loc.mets.StructMapType[] structMapTypeArray = ieParser.getStructMapsByFileGrpId(this.repPid);
+     gov.loc.mets.StructMapType[] structMapTypeArray = ieParser.getStructMapsByFileGrpId(this.repPid);
+      
         for (gov.loc.mets.StructMapType structMapType : structMapTypeArray) {
           this.origFilesPid = ieParser.getFilesArray(structMapType);
           if (structMapType.getTYPE().equals(com.exlibris.core.sdk.consts.Enum.StructMapType.LOGICAL.name())) {
@@ -99,15 +109,15 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
           for (DnxSectionRecord record : dnxieSR2) {
               DnxRecordKey key = record.getKeyById(DNXConstants.GENERALIECHARACTERISTICS.IEENTITYTYPE.sectionKeyId);
               if (this.entiteit.length() != 0) this.entiteit += " - ";
-              this.entiteit += key.getValue();
+              this.entiteit += key.getValue().replace("_", " ");
           }        
       this.ext = db.getFileExtension(this.origFilesPid.get(0));
-      if (this.ext.toUpperCase().equals(repType.JP2.name())) {
-        this.type = repType.JP2;
-      } else if (this.ext.toUpperCase().equals(repType.TIFF.name())) {
-        this.type = repType.TIFF;
-      } else if (this.ext.toUpperCase().equals(repType.TIF.name())) {
-        this.type = repType.TIFF;
+      if (this.ext.toUpperCase().equals(MiradorViewerPreProcessor.repType.JP2.name())) {
+        this.type = MiradorViewerPreProcessor.repType.JP2;
+      } else if (this.ext.toUpperCase().equals(MiradorViewerPreProcessor.repType.TIFF.name())) {
+        this.type = MiradorViewerPreProcessor.repType.TIFF;
+      } else if (this.ext.toUpperCase().equals(MiradorViewerPreProcessor.repType.TIF.name())) {
+        this.type = MiradorViewerPreProcessor.repType.TIFF;
       }
       else
       {
@@ -124,26 +134,30 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
 
   public void execute() throws Exception
   {
+    boolean origPidFound = false;
     Map paramMap = getAccess().getViewerDataByDVS(getDvs()).getParameters();
-
-    addHeaderIndexFile();
-    Iterator iterator = this.pids.iterator();
     
+//    addHeaderIndexFile();
+    Iterator iterator = this.pids.iterator();
+
+    int filecntr = 0;
     while (iterator.hasNext()) {
-        this.pid = (String) iterator.next();     
-        if (!updateNeeded(this.pid)) {
+        this.pid = (String) iterator.next();   
+     try
+        {
+
+            if (!updateNeeded(this.pid)) {
             if (this.pid.equals(this.origPid)) {
+                origPidFound = true;
                 IEParser ieParser = getAccess().getIE(this.origPid,null,null);
                 DublinCore dc = ieParser.getIeDublinCore();
                 paramMap.put("ie_title", dc.getTitle());
             }
-            addManifestToIndexFile(this.pid);
+//            addManifestToIndexFile(this.pid);
             continue;
         }
-                                                                    
-     try
-        {
-
+            
+        if ((filecntr < 10) || (origPidFound == false))    {
           IEParser ieParser = getAccess().getIE(this.pid,null,null);
           if ((this.repPid = db.getDerivativeHighPid(this.pid))== null) {
              this.repPid = db.getPreservation(this.pid);
@@ -159,30 +173,48 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
 
 
             this.ext = db.getFileExtension(this.filesPid.get(0));
-            if ((this.ext != null) && ((this.ext.toUpperCase().equals(repType.TIFF.name())) || (this.ext.toUpperCase().equals(repType.JP2.name())))) {
+            if ((this.ext != null) && ((this.ext.toUpperCase().equals(MiradorViewerPreProcessor.repType.TIFF.name())) || (this.ext.toUpperCase().equals(MiradorViewerPreProcessor.repType.JP2.name())))) {
               prepareImageFiles(dc.getTitle());
-              addManifestToIndexFile(this.pid);
+//              addManifestToIndexFile(this.pid);              
+              if (this.pid.equals(this.origPid)) {
+                  origPidFound = true;
+                  logger.info("origPidFound="+origPidFound);
+              }
+            filecntr = filecntr+1;
+            logger.info("filecntr="+filecntr);
             } else {
               logger.warn("Book reader viewer pre processor doesn't support type: " + this.type + ", PID: " + this.pid, new String[0]);
             }
-
+        }
         }
         catch (Exception e) {
           logger.error("Error In Book Reader VPP - cannot retreive the files to view", e, new String[] { this.pid });
           throw new AccessException();
         }
+
     }
-    addFooterIndexFile();
+//    addFooterIndexFile();
+//    logger.info("addFooterIndexFile");
     
-    String filePath = getAccess().exportFileStream((String)this.origFilesPid.get((this.origFilesPid.size())-1), MiradorViewerPreProcessor.class.getSimpleName(), this.ieParentId, this.repDirName, this.origRepPid + File.separator + (this.origFilesPid.size()-1));
-    String directoryPath = filePath.substring(0, filePath.lastIndexOf(String.valueOf(this.origFilesPid.size() - 1)));
+    
+    //String filePath = getAccess().exportFileStream((String)this.origFilesPid.get((this.origFilesPid.size())-1), MiradorViewerPreProcessor.class.getSimpleName(), this.ieParentId, this.repDirName, this.origRepPid + File.separator + (this.origFilesPid.size()-1));
+    //String directoryPath = filePath.substring(0, filePath.lastIndexOf(String.valueOf(this.origFilesPid.size() - 1)));
+//    String filePath = getAccess().exportFileStream((String)this.origFilesPid.get((this.origFilesPid.size())-1), MiradorViewerPreProcessor.class.getSimpleName(), this.ieParentId, this.repDirName, this.origRepPid + File.separator + (this.origFilesPid.size()-1));
+//    String directoryPath = filePath.substring(0, filePath.lastIndexOf(String.valueOf(this.origFilesPid.size() - 1)));
+       
+//    String filePath = storageMap.get(db.getStorageid())+db.getInternalpath();
+
     paramMap.put("ie_dvs", getDvs());
     paramMap.put("entiteit",db.getEntityType());    
     paramMap.put("ie_pid", this.origPid);    
     getAccess().setParametersByDVS(getDvs(), paramMap);
     getAccess().updateProgressBar(getDvs(), "", 100);
+
+//    db.getFileLabel(this.origPid);
+//    String fileDir = db.getInternalpath().substring(0,db.getInternalpath().lastIndexOf("/"))
     
-    getAccess().setFilePathByDVS(getDvs(), new SmartFilePath(directoryPath), this.origRepPid);    
+//    getAccess().setFilePathByDVS(getDvs(), new SmartFilePath(directoryPath), this.origRepPid); 
+    logger.info("finished");
   }
   
   private void prepareImageFiles(String title) throws Exception
@@ -195,11 +227,12 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
 
     manifest.put( "@context", "http://iiif.io/api/presentation/2/context.json");
     manifest.put( "@id", "http://services.libis.be/mirador/manifest/manifest" + this.pid +"manifest.json");
+//    manifest.put( "@id", "http://http://libis-p-rosetta-3w.cc.kuleuven.be:80/m2/" + this.pid +"manifest.json");
 //    manifest.put( "@id", "http://services.libis.be/m2/manifest/" + this.pid +"manifest.json");
     manifest.put( "@type", "sc:Manifest");
     manifest.put( "label", title);
-    manifest.put( "attribution", this.licentie);
-    manifest.put( "license", this.entiteit);
+    manifest.put( "license", this.licentie);
+    manifest.put( "attribution", this.entiteit);
     
     JSONObject sequence = new JSONObject();
     
@@ -213,12 +246,18 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
         
     for (int index = 0; index < this.filesPid.size(); index++) {
         
-      filePath = getAccess().exportFileStream((String)this.filesPid.get(index), MiradorViewerPreProcessor.class.getSimpleName(), this.ieParentId, this.repDirName, this.repPid + File.separator + index);
+//       filePath = getAccess().exportFileStream((String)this.filesPid.get(index), MiradorViewerPreProcessor.class.getSimpleName(), this.ieParentId, this.repDirName, this.repPid + File.separator + index);
       String label = db.getFileLabel(this.filesPid.get(index));
-      String fullFileName = filePath.substring(filePath.lastIndexOf("MiradorViewerPreProcessor")+("MiradorViewerPreProcessor").length()+1);
-      canvases.put(createManifestFile(label,fullFileName,this.filesPid.get(index),index));
+//      String fullFileName = filePath.substring(filePath.lastIndexOf("MiradorViewerPreProcessor")+("MiradorViewerPreProcessor").length()+1);
+//      canvases.put(createManifestFile(label,fullFileName,this.filesPid.get(index),index));
+          if (db.getStorageid() > 0) {
+        filePath = storageMap.get(db.getStorageid())+db.getInternalpath();
+        setsymboliclink(filePath);
+        canvases.put(createManifestFile(label,filePath,this.filesPid.get(index),index));
+      }
+     
       updateProgressBar(index);
-      
+
     }
     sequence.put("canvases",canvases);
     sequences.put(sequence);
@@ -227,6 +266,43 @@ public class MiradorViewerPreProcessor extends AbstractViewerPreProcessor
     writeManifest(manifest,this.pid);
      
   }  
+  
+  private void setsymboliclink(String filePath){
+        Process p;
+        Process pp;
+        Process ppp;
+        String fileDir = filePath.substring(0,filePath.lastIndexOf("/"));
+        String filename = filePath.substring(fileDir.length()+1);
+        String totalfiledir = iipservDir+fileDir;
+        String totalfilename = totalfiledir+"/"+filename;
+        
+        
+        try {
+            p = Runtime.getRuntime().exec("mkdir -p "+totalfiledir);
+            p.waitFor();
+            p.destroy();
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+//        File newDirectory = new File(totalfiledir);
+//        if (!newDirectory.exists() || !newDirectory.isDirectory()) {
+//           logger.error(totalfiledir+ " bestaat niet.");
+//        } else {
+//           ProcessBuilder pb = new ProcessBuilder("cd");
+//           pb.directory(newDirectory);
+           try {
+//                ppp = pb.start();
+//                ppp.waitFor();
+                pp = Runtime.getRuntime().exec("ln -nfs " + filePath + " " + totalfilename );
+                pp.waitFor();
+                logger.info("exit: " + pp.exitValue());
+                pp.destroy();
+//                ppp.destroy();
+            } catch (Exception e) {
+                logger.error(e.getMessage());
+            }
+//        }
+  }
   
   
   private void updateProgressBar(int index) throws Exception {
@@ -339,8 +415,6 @@ private String readFile( String file ) throws IOException {
 }  
   
     public void addHeaderIndexFile() {
-      
-   
     try {  
        
         String data = "<script>$(function() {Mirador({\"id\": \"viewer\",\"currentWorkspaceType\": \"singleObject\",\"data\":[";
